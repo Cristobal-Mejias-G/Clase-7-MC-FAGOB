@@ -1,0 +1,539 @@
+---
+format:
+  clean-revealjs:
+    self-contained: true
+    slide-number: true
+    transition: fade
+    chalkboard: false
+lang: es
+execute:
+  echo: true
+  messaege: false
+  warning: false
+---
+
+#  {background-color="#40666e"}
+
+::: {style="text-align: left; padding-top: 10px; line-height: 1.3;"}
+[Modelos de regresión múltiples]{style="font-size: 2.2em; font-weight: 600; color: #D49A3B; display: block; margin-bottom: 5px; line-height: 1.1;"}
+
+[Ayudantía 07 · FAGOB 2026]{style="font-size: 1.2em; font-weight: 400; letter-spacing: 0.5px; display: block; margin-bottom: 10px;"}
+
+[Métodos Cuantitativos para la Administración Pública]{style="font-size: 1.2em; font-weight: 400;  display: block; margin-bottom: 40px;"}
+
+[Cristóbal Mejías · Facultad de Gobierno]{style="font-size: 1.3em; display: block; color: #D1DCE2;"} [12 de junio 2026]{style="font-size: 1.3em; display: block; margin-bottom: 15px; color: #D1DCE2;"} [[\[Repositorio de ayudantías\]](https://github.com/Cristobal-Mejias-G/metodos-cuantitativos-fagob){style="color: #cbdffa;"}]{style="font-size: 1.3em; font-weight: 400;"}
+:::
+
+## Índice {style="font-size: 1.5em;"}
+
+### ¿Qué veremos hoy?
+
+::: {style="font-size: 0.8em;"}
+1.  Modelos de regresión múltiple
+2.  Caso aplicado: regresión múltiple con CEP octubre 2025
+3.  Dummys y regresión con variables categóricas
+4.  Exportación de tablas
+5.  Ejercicios aplicados
+:::
+
+# Modelos de regresión múltiple {background-color="#40666e"}
+
+## {style="font-size: 1.5em;"}
+
+### No es lo mismo que múltiples regresiones lineales simples {style="font-size: 0.9em;"}
+
+::: {style="font-size: 0.8em;"}
+El modelo de regresión múltiple estima el efecto de cada predictor mientras **controla** por los demás, lo que permite entender la contribución única de cada variable independiente al resultado, y cómo estas variables interactúan entre sí para influir en la variable dependiente.
+:::
+
+
+## {style="font-size: 1.5em;"}
+
+### La fórmula general de un modelo de regresión múltiple {style="font-size: 0.9em;"}
+
+::: {style="font-size: 0.8em;"}
+$$Y = \beta_0 + \beta_1X_1 + \beta_2X_2 + \beta_3X_3 + ... + \beta_nX_n + \epsilon$$
+
+Donde:
+
+- $Y$ es la variable dependiente.
+- $\beta_0$ es la intercepción.
+- $\beta_1, \beta_2, ..., \beta_n$ son los coeficientes de regresión para cada variable independiente.
+- $X_1, X_2, ..., X_n$ son las variables independientes.
+- $\epsilon$ es el término de error.
+:::
+
+## {style="font-size: 1.5em;"}
+
+### Interpretación de los coeficientes en un modelo de regresión múltiple {style="font-size: 0.9em;"}
+::: {style="font-size: 0.8em;"}
+- **Coeficiente ($\beta_i$)**: Representa el cambio esperado en la variable dependiente ($Y$) por cada unidad de cambio en la variable independiente ($X_i$), manteniendo constantes las demás variables independientes.
+- **Signo del coeficiente**: Indica la dirección de la relación entre la variable independiente y la dependiente (positivo o negativo).
+- **Magnitud del coeficiente**: Indica la fuerza de la relación entre la variable independiente y la dependiente.
+:::
+
+## {style="font-size: 1.5em;"}
+### Supuestos del modelo de regresión múltiple {style="font-size: 0.9em;"}
+::: {style="font-size: 0.8em;"}
+1. **Linealidad**: La relación entre las variables independientes y la dependiente es lineal.
+2. **Independencia**: Las observaciones son independientes entre sí.
+3. **Homocedasticidad**: La varianza de los errores es constante a lo largo de los valores de las variables independientes.
+4. **Normalidad**: Los errores están distribuidos normalmente.
+:::
+
+# Caso aplicado: regresión múltiple con CEP octubre 2025 {background-color="#40666e"}
+## {style="font-size: 1.5em;"}
+### Preparación de los datos {style="font-size: 0.9em;"}
+::: {style="font-size: 0.8em;"}
+
+```{r}
+# Librerías ---------------------------------------------------
+
+pacman::p_load(
+  haven, # para importar datos en formato SPSS
+  tidyverse, # para manipulación de datos
+  sjmisc, # para funciones de manipulación de datos
+  sjlabelled, # para manejo de etiquetas de variables y valores
+  stargazer, # para tablas de regresión (stargazer)
+  texreg, # para tablas de regresión (texreg)
+  forcats, # para manejo de factores (variables categóricas)
+  kableExtra # para tablas más bonitas
+)
+
+options(scipen = 999)  # Desactivar notificación cinetífica
+
+base <- read_rds("output/cep95.RData")
+
+```
+
+:::
+
+## {style="font-size: 1.5em;"}
+### Análisis descriptivo {style="font-size: 0.9em;"}
+
+::: {style="font-size: 0.4em;"}
+```{r}
+#| echo = FALSE
+tabla_cep <- sjmisc::descr(base,
+      show = c("label","range", "mean", "sd", "NA.prc", "n"))%>% # Selecciona estadísticos
+  kable(.,"markdown" # Esto es para que se vea bien en quarto
+  )
+
+tabla_cep
+
+```
+:::
+
+# Recodificación de variables: ¿Categorías o Dummys? {background-color="#40666e"}
+
+## {style="font-size: 1.5em;"}
+### ¿Qué ocurre si lo usamos como variable categórica? {style="font-size: 0.9em;"}
+
+::: {style="font-size: 0.5em;"}
+```{r}
+# Posición política: categorías
+base <- base |> 
+  mutate(pos_pol_rec = case_when(pos_pol %in% c(1,2,3,4) ~ "Izquierda",
+                                pos_pol %in% c(5,6) ~ "Centro",
+                                pos_pol %in% c(7,8,9,10) ~ "Derecha",
+                                pos_pol %in% c(-8,-9) ~ "Sin posición",))
+
+modelo_cat <- lm(esc_delincuencia ~ pos_pol_rec, data = base)
+
+stargazer(modelo_cat, type = "text")
+
+```
+:::
+
+## {style="font-size: 1.5em;"}
+### ¿Qué ocurre si lo usamos como variable dummy? {style="font-size: 0.9em;"}
+::: {style="font-size: 0.5em;"}
+```{r}
+
+# Posición política: dummys
+base <- base |> 
+  mutate(
+    pol_izquierda = if_else(pos_pol  %in% c(1,2,3,4), 1, 0),
+    pol_centro = if_else(pos_pol %in% c(5,6), 1, 0),
+    pol_derecha = if_else(pos_pol %in% c(7,8,9,10), 1, 0),
+    pol_sin_posicion = if_else(pos_pol %in% c(-8,-9), 1, 0)
+  )
+
+modelo_dummy <- lm(esc_delincuencia ~ pol_izquierda + pol_derecha + pol_sin_posicion, data = base)
+
+stargazer(modelo_dummy, type = "text")
+
+
+```
+:::
+
+## {style="font-size: 1.5em;"}
+### Comparación de modelos: categorías vs dummys {style="font-size: 0.9em;"}
+::: {style="font-size: 0.5em;"}
+```{r}
+screenreg(list(modelo_cat, modelo_dummy))
+```
+:::
+
+## {style="font-size: 1.5em;"}
+
+### Sobre categorías de referencia {style="font-size: 0.9em;"}
+
+::: {style="font-size: 0.5em;"}
+```{r}
+base <- base |>
+  mutate(pos_pol_rec = fct_relevel(pos_pol_rec, "Izquierda")) # Fijamos Izquierda como referencia
+
+modelo_cat_ref <- lm(esc_delincuencia ~ pos_pol_rec, data = base)
+
+modelo_dummy_ref <- lm(esc_delincuencia ~ pol_centro + pol_derecha + pol_sin_posicion, data = base)
+
+```
+:::
+
+
+## {style="font-size: 1.5em;"}
+### Síntesis Categorías vs Dummys {style="font-size: 0.9em;"}
+::: {style="font-size: 0.5em;"}
+```{r}
+screenreg(list(modelo_cat, modelo_dummy, modelo_cat_ref, modelo_dummy_ref))
+```
+:::
+
+# Recodificación de variables {background-color="#40666e"}
+## {style="font-size: 1.5em;"}
+### Variables categóricas con más de dos categorías: ejemplo con educación {style="font-size: 0.9em;"}
+::: {style="font-size: 0.6em;"}
+```{r}
+# Educación: categorías
+base <- base |> 
+  mutate(educ_rec = case_when(educacion %in% c(0,1,2,3,4) ~ "1. Media completa o inferior",
+                            educacion %in% c(5,6,7) ~ "2. Universitaria incompleta\no Tecnica profesional",
+                            educacion %in% c(8,9,10) ~ "3. Universitaria completa o superior",
+                            TRUE ~ NA_character_))
+
+# Educación: dummys
+base <- base |> 
+  mutate(
+    educ_media_completa = if_else(educacion %in% c(0,1,2,3,4), 1, 0),
+    educ_uni_incompleta = if_else(educacion %in% c(5,6,7), 1, 0),
+    educ_uni_completa   = if_else(educacion %in% c(8,9,10), 1, 0)
+  )
+```
+:::
+
+## {style="font-size: 1.5em;"}
+### Tratamiento: Preferencia por la democracia 
+::: {style="font-size: 0.6em;"}
+```{r}
+
+# Preferencia por la democracia: categorías
+base <- base |> 
+  mutate(pref_dem_rec = case_when(democracia == 1 ~ "1. Democracia es preferible a cualquier otra forma de gobierno",
+                                democracia == 2 ~ "2. En algunas circunstancias, un gobierno autoritario puede ser preferible a uno democrático",
+                                democracia == 3 ~ "3. A la gente como uno, le da lo mismo un régimen democrático que uno autoritario",
+                                TRUE ~ NA_character_))
+
+# Preferencia por la democracia: dummys
+base <- base |>
+  mutate(
+    pref_democracia = if_else(democracia == 1, 1, 0),
+    pref_autoritarismo = if_else(democracia == 2, 1, 0),
+    pref_indiferente = if_else(democracia == 3, 1, 0)
+  )
+```
+:::
+
+## {style="font-size: 1.5em;"}
+### Tratamiento: Líder autoritario
+::: {style="font-size: 0.6em;"}
+```{r}
+# Líder autoritario: categorías
+base <- base |> 
+  mutate(lider_autoritario_rec = case_when(lider_autoritario %in% c(1,2) ~ "1. Apoyo líder fuerte sin congreso ni elecciones",
+                                lider_autoritario %in% c(3,4) ~ "2. Rechazo líder fuerte sin congreso ni elecciones",
+                                TRUE ~ NA_character_))
+    
+# Líder autoritario: dummys
+base <- base |> 
+  mutate(
+    apoyo_lider_autoritario = if_else(lider_autoritario %in% c(1,2), 1, 0),
+    rechazo_lider_autoritario = if_else(lider_autoritario %in% c(3,4), 1, 0)
+  )
+```
+:::
+
+## {style="font-size: 1.5em;"}
+### Tratamiento: Religiosidad
+::: {style="font-size: 0.6em;"}
+```{r}
+
+# Aborto: categorías
+base <- base |> 
+  mutate(aborto_rec = case_when(aborto == 1 ~ "1. El aborto debe estar siempre prohibido",
+                                aborto == 2 ~ "2. El aborto sólo debe estar permitido en casos especiales",
+                                aborto == 3 ~ "3. El aborto debe ser una opción para las mujeres, en cualquier caso",
+                                TRUE ~ NA_character_))
+
+# Aborto: dummys
+base <- base |> 
+  mutate(aborto_prohibido = if_else(aborto == 1, 1, 0)) |> 
+  mutate(aborto_casosespeciales = if_else(aborto == 2, 1, 0)) |> 
+  mutate(aborto_libre = if_else(aborto == 3, 1, 0))
+
+# Eutanasia: categorías
+base <- base |> 
+  mutate(eutanasia_rec = case_when(eutanasia == 1 ~ "1. La eutanasia debe estar siempre permitida",
+                                eutanasia == 2 ~ "2. La eutanasia sólo debe estar permitida en casos especiales",
+                                eutanasia == 3 ~ "3. La eutanasia no debe estar nunca permitida",
+                                TRUE ~ NA_character_))
+
+# Eutanasia: dummys
+base <- base |> 
+  mutate(eutanasia_permitida = if_else(eutanasia == 1, 1, 0)) |> 
+  mutate(eutanasia_casosespeciales = if_else(eutanasia == 2, 1, 0)) |> 
+  mutate(eutanasia_prohibida = if_else(eutanasia == 3, 1, 0))
+```
+:::
+
+## {style="font-size: 1.5em;"}
+### Tratamiento: Confianza en el Estado
+::: {style="font-size: 0.5em;"}
+```{r}
+# Confianza en el Estado: 
+base <- base |> 
+  mutate(
+    across(
+      c(confianza_justicia, confianza_congreso, confianza_gobierno),
+      ~ sjmisc::rec(., rec = "1=4; 2=3; 3=2; 4=1; else=NA"),
+      .names = "{.col}_recode"
+    )
+  ) |> 
+  mutate(
+    across(
+      c(confianza_justicia_recode, confianza_congreso_recode, confianza_gobierno_recode),
+      ~ sjlabelled::set_labels(., labels = c("Nada de confianza" = 1, "Poca confianza" = 2, "Bastante confianza" = 3, "Mucha confianza" = 4))
+    )
+  ) |> 
+mutate(
+    esc_confianza_estado2 = confianza_justicia_recode + confianza_congreso_recode + confianza_gobierno_recode,
+    esc_confianza_estado2 = esc_confianza_estado2 - 2
+  ) |> 
+  set_labels(
+    esc_confianza_estado2,
+    labels = c("Nada de confianza" = 1, "Mucha confianza" = 10)
+  ) |> 
+  var_labels(
+    esc_confianza_estado2 = "Escala de Confianza en el Estado"
+  )
+```
+:::
+
+## {style="font-size: 1.5em;"}
+### Análisis descriptivo: variables recodificadas {style="font-size: 0.9em;"}
+::: {style="font-size: 0.2em;"}
+```{r}
+#| echo = FALSE
+tabla_cep2 <- sjmisc::descr(base,
+      show = c("label","range", "mean", "sd", "NA.prc", "n"))%>% # Selecciona estadísticos
+  kable(.,"markdown" # Esto es para que se vea bien en quarto
+  )
+
+tabla_cep2
+
+```
+:::
+
+
+## {style="font-size: 1.5em;"}
+### Tratamiento NA {style="font-size: 0.9em;"}
+::: {style="font-size: 1.5em;"}
+
+```{r}
+base <- na.omit(base)
+```
+:::
+
+# Tablas {background-color="#40666e"}
+
+## {style="font-size: 1.5em;"}
+### Estrategia: construcción de modelos anidados {style="font-size: 0.9em;"}
+
+::: {style="font-size: 0.6em;"}
+Una práctica habitual en regresión múltiple es construir modelos **anidados**: se parte de un modelo simple y se van incorporando predictores de forma progresiva. Esto permite evaluar:
+
+- Cómo cambian los coeficientes al agregar controles.
+- Si las nuevas variables mejoran la capacidad explicativa del modelo (R²).
+- Si el efecto de una variable es robusto o desaparece al controlar por otras.
+
+En este ejemplo la variable dependiente es `esc_delincuencia` (Preferencia: Garantizar libertades vs. Suprimir libertades para controlar la delincuencia).
+:::
+
+## {style="font-size: 1.5em;"}
+### Modelo 1: Solo posición política {style="font-size: 0.9em;"}
+::: {style="font-size: 0.55em;"}
+```{r}
+# Modelo 1: posición política (como factor, referencia = Izquierda)
+base <- base |>
+  mutate(pos_pol_rec = fct_relevel(pos_pol_rec, "Izquierda"))
+
+modelo1 <- lm(esc_delincuencia ~ pos_pol_rec, data = base)
+
+screenreg(modelo1)
+```
+:::
+
+## {style="font-size: 1.5em;"}
+### Modelo 2: Agregamos educación {style="font-size: 0.9em;"}
+::: {style="font-size: 0.55em;"}
+```{r}
+# Modelo 2: posición política + educación
+base <- base |>
+  mutate(educ_rec = fct_relevel(educ_rec, "1. Media completa o inferior"))
+
+modelo2 <- lm(esc_delincuencia ~ pos_pol_rec + educ_rec, data = base)
+
+screenreg(modelo2)
+```
+:::
+
+## {style="font-size: 1.5em;"}
+### Modelo 3: Agregamos actitudes políticas {style="font-size: 0.9em;"}
+::: {style="font-size: 0.55em;"}
+```{r}
+# Modelo 3: posición política + educación + líder autoritario + preferencia democracia
+modelo3 <- lm(esc_delincuencia ~ pos_pol_rec + educ_rec +
+                apoyo_lider_autoritario + pref_autoritarismo + pref_indiferente,
+              data = base)
+
+screenreg(modelo3)
+```
+:::
+
+## {style="font-size: 1.5em;"}
+### Comparación de los tres modelos {style="font-size: 0.9em;"}
+::: {style="font-size: 0.55em;"}
+```{r}
+screenreg(list(modelo1, modelo2, modelo3),
+          custom.model.names = c("M1: Pos. política",
+                                 "M2: + Educación",
+                                 "M3: + Actitudes políticas"))
+```
+:::
+
+## {style="font-size: 1.5em;"}
+### Tabla HTML con `sjPlot` {style="font-size: 0.9em;"}
+::: {style="font-size: 0.6em;"}
+```{r}
+#| eval: false
+sjPlot::tab_model(
+  modelo1, modelo2, modelo3,
+  dv.labels = c("M1", "M2", "M3"),
+  pred.labels = c(
+    "Intercepto",
+    "Centro (ref: Izquierda)", "Derecha", "Sin posición",
+    "Educ. universitaria incompleta/técnica (ref: Media o inferior)",
+    "Educ. universitaria completa o superior",
+    "Apoyo líder autoritario",
+    "Preferencia autoritarismo (ref: Democracia)",
+    "Indiferencia régimen"
+  ),
+  show.ci = FALSE,
+  title = "Modelos de regresión: Preferencia por suprimir libertades para controlar delincuencia"
+)
+```
+:::
+
+##
+
+::: {style="font-size: 0.6em;"}
+```{r}
+#| results: asis
+#| echo: false
+sjPlot::tab_model(
+  modelo1, modelo2, modelo3,
+  dv.labels = c("M1", "M2", "M3"),
+  pred.labels = c(
+    "Intercepto",
+    "Centro (ref: Izquierda)", "Derecha", "Sin posición",
+    "Educ. universitaria incompleta/técnica (ref: Media o inferior)",
+    "Educ. universitaria completa o superior",
+    "Apoyo líder autoritario",
+    "Preferencia autoritarismo (ref: Democracia)",
+    "Indiferencia régimen"
+  ),
+  show.ci = FALSE,
+  title = "Modelos de regresión: Preferencia por suprimir libertades para controlar delincuencia"
+)
+```
+:::
+
+
+## {style="font-size: 1.5em;"}
+### Lectura e interpretación {style="font-size: 0.9em;"}
+
+::: {style="font-size: 0.6em;"}
+**¿Qué observamos al comparar los tres modelos?**
+
+- En M1, la posición política de derecha se asocia positivamente con la preferencia por suprimir libertades, en relación con quienes se ubican a la izquierda.
+- Al agregar educación (M2), el efecto de la posición política se mantiene, mientras que un mayor nivel educativo tiende a asociarse negativamente con la supresión de libertades.
+- En M3, la preferencia por el autoritarismo y la indiferencia frente a la democracia son predictores con efecto positivo y estadísticamente significativo.
+- Nótese cómo el R² ajustado aumenta progresivamente: agregar variables mejora la capacidad explicativa del modelo.
+:::
+
+# Ejercicios aplicados {background-color="#40666e"}
+
+## {style="font-size: 1.5em;"}
+### Ejercicio 1: Conceptual {style="font-size: 0.9em;"}
+
+::: {style="font-size: 0.6em;"}
+**Responde las siguientes preguntas:**
+
+1. ¿Cuál es la diferencia entre estimar varias regresiones simples por separado y estimar un modelo de regresión múltiple? ¿Por qué esta diferencia importa para la interpretación de los coeficientes?
+
+2. En un modelo de regresión múltiple, ¿qué significa que el coeficiente de una variable sea estadísticamente significativo pero su magnitud sea pequeña? ¿Y al revés?
+
+3. ¿Qué información adicional entrega el R² ajustado en comparación con el R²? ¿Por qué es relevante al comparar modelos con distinto número de predictores?
+
+4. ¿Por qué es importante definir una categoría de referencia al incluir variables categóricas en un modelo de regresión? ¿Qué ocurre si se incluyen todas las categorías como dummies?
+:::
+
+## {style="font-size: 1.5em;"}
+### Ejercicio 2: Responsabilidad económica {style="font-size: 0.7em;"}
+
+::: {style="font-size: 0.5em;"}
+**Variable dependiente:** `esc_responsabilidad`  
+*Preferencia: Estado vs. Individuos como responsables del sustento económico* (escala 1–10, donde 1 = Estado responsable y 10 = Individuo responsable)
+
+**Instrucciones:**
+
+1. Estima tres modelos anidados incluyendo progresivamente las siguientes variables independientes:
+   - **M1:** Posición política (`pos_pol_rec`, ref. = Izquierda)
+   - **M2:** M1 + Educación (`educ_rec`, ref. = Media completa o inferior)
+   - **M3:** M2 + Preferencia sobre el aborto (ref= `aborto_prohibido`), y preferencia sobre la eutanasia (ref= `eutanasia_prohibida`)
+
+2. Compara los tres modelos con `screenreg()` y luego genera una tabla HTML con `sjPlot::tab_model()`.
+
+3. Interpreta: ¿Cómo se relacionan las actitudes sobre aborto y eutanasia con la preferencia por responsabilidad individual frente al Estado? ¿El efecto de la posición política se mantiene al controlar por estas actitudes valóricas?
+:::
+
+## {style="font-size: 1.5em;"}
+### Ejercicio 3: Mérito e igualdad de ingresos {style="font-size: 0.7em;"}
+
+::: {style="font-size: 0.5em;"}
+**Variable dependiente:** `esc_ingreso_merito`  
+*Preferencia: Igualdad de ingresos vs. Premiar el esfuerzo individual* (escala 1–10, donde 1 = igualdad de ingresos y 10 = premiar esfuerzo)
+
+**Instrucciones:**
+
+1. Estima tres modelos anidados:
+   - **M1:** Posición política (ref. = Izquierda)
+   - **M2:** M1 + Educación (`educ_rec`, ref. = Media completa o inferior) + Preferencia de régimen (ref = `pref_democracia`)
+   - **M3:** M2 + Preferencia sobre el aborto (ref= `aborto_prohibido`), y preferencia sobre la eutanasia (ref= `eutanasia_prohibida`)
+
+2. Compara los modelos con `screenreg()` y genera una tabla HTML con `sjPlot::tab_model()`.
+
+3. ¿Es razonable esperar que las actitudes sobre aborto y eutanasia tengan poder predictivo sobre las preferencias redistributivas?
+:::
+
+# Nos vemos en la próxima ayudantía. ¡Gracias por su atención! {background-color="#40666e"}
