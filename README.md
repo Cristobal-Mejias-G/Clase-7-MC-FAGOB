@@ -1,4 +1,4 @@
-# Clase-7-MC-FAGOB
+# Clase-7-MC-FAGOB: Modelos estadísticos
 ## Curso: Métodos Cuantitativos para la Administración Pública. Profesor: Carlos Budnevich
 ### Ayudante: Cristóbal Mejías
 
